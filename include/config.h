@@ -64,11 +64,11 @@ namespace BatteryConfig {
 
 // ── FreeRTOS Task Config ──────────────────────────────────────
 namespace TaskConfig {
-    // Stack sizes (words, not bytes — multiply by 4 for bytes on ESP32)
-    constexpr uint32_t SENSOR_STACK    = 2048;
-    constexpr uint32_t CONTROL_STACK   = 2048;
-    constexpr uint32_t TELEMETRY_STACK = 2048;
-    constexpr uint32_t GPS_STACK       = 2048;
+    // Stack sizes (bytes for ESP-IDF)
+    constexpr uint32_t SENSOR_STACK    = 4096;
+    constexpr uint32_t CONTROL_STACK   = 4096;
+    constexpr uint32_t TELEMETRY_STACK = 8192;
+    constexpr uint32_t GPS_STACK       = 4096;
 
     // Priorities (higher = more urgent; keep control highest)
     constexpr uint8_t CONTROL_PRIORITY   = 5;

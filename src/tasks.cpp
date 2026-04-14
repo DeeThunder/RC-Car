@@ -150,6 +150,12 @@ void telemetryTask(void* pvParams) {
     TickType_t xLastWake = xTaskGetTickCount();
 
     for (;;) {
+        // Skip telemetry while pairing to give Bluetooth 100% antenna access
+        if (ps4.isPairingMode()) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
         webServer.update();              // poll TCP, accept/cleanup
         webServer.broadcastTelemetry();  // push JSON if WS connected
         vTaskDelayUntil(&xLastWake, pdMS_TO_TICKS(TaskConfig::TELEMETRY_PERIOD));

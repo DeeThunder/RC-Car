@@ -10,7 +10,8 @@
 // ║  Non-blocking: rumble auto-stops via millis() timer.         ║
 // ╚══════════════════════════════════════════════════════════════╝
 
-#include <PS4Controller.h>
+#include "ps4_handler.h"
+extern PS4Handler ps4;
 #include <cmath>
 #include "config.h"
 
@@ -28,7 +29,7 @@ public:
     // ax, ay, az in m/s² — taken from TelemetryStore snapshot
     // speed_kmh    — taken from TelemetryStore GPS reading
     void update(float ax, float ay, float az, float speed_kmh) {
-        if (!PS4.isConnected()) return;
+        if (!ps4.isConnected()) return;
 
         uint32_t now = millis();
 
@@ -61,24 +62,24 @@ public:
             bool aboveThreshold = (speed_kmh >= HapticConfig::SPEED_RUMBLE_THRESHOLD);
 
             if (aboveThreshold && _activeEvent == RumbleEvent::NONE && !_speedBuzzing) {
-                PS4.setRumble(HapticConfig::SPEED_RUMBLE_LARGE,
+                ps4.setRumble(HapticConfig::SPEED_RUMBLE_LARGE,
                               HapticConfig::SPEED_RUMBLE_SMALL);
                 _speedBuzzing = true;
 
             } else if (!aboveThreshold && _speedBuzzing) {
-                PS4.setRumble(0, 0);
+                ps4.setRumble(0, 0);
                 _speedBuzzing = false;
             }
         }
 
         // ── Auto-stop impact rumble after its duration ─────────
         if (_activeEvent != RumbleEvent::NONE && currentExpired) {
-            PS4.setRumble(0, 0);
+            ps4.setRumble(0, 0);
             _activeEvent = RumbleEvent::NONE;
 
             // Resume speed buzz immediately if still fast enough
             if (speed_kmh >= HapticConfig::SPEED_RUMBLE_THRESHOLD) {
-                PS4.setRumble(HapticConfig::SPEED_RUMBLE_LARGE,
+                ps4.setRumble(HapticConfig::SPEED_RUMBLE_LARGE,
                               HapticConfig::SPEED_RUMBLE_SMALL);
                 _speedBuzzing = true;
             }
@@ -87,7 +88,7 @@ public:
 
     // Call on emergency stop or controller disconnect
     void stopAll() {
-        if (PS4.isConnected()) PS4.setRumble(0, 0);
+        if (ps4.isConnected()) ps4.setRumble(0, 0);
         _activeEvent  = RumbleEvent::NONE;
         _speedBuzzing = false;
     }
@@ -121,7 +122,7 @@ private:
             default: return;
         }
 
-        PS4.setRumble(large, small);
+        ps4.setRumble(large, small);
         _activeEvent      = evt;
         _rumbleStartMs    = now;
         _rumbleDurationMs = dur;

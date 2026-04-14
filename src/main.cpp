@@ -22,6 +22,7 @@
 #include "tasks.h"
 
 // ── Hardware singletons ───────────────────────────────────────
+ControllerPtr PS4Handler::_controller = nullptr;
 MotorController  motors;
 PS4Handler       ps4;
 IMUHandler       imu;
@@ -103,13 +104,12 @@ void setup() {
     Serial.begin(115200);
     delay(500);
 
-    // Release unused BLE memory for Classic ESP32 heap optimization
-    esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+    // (BLE memory cannot be released because Bluepad32 uses it to scan for controllers)
 
     // ── Power Efficiency ─────────────────────────────────────
-    setCpuFrequencyMhz(160);                // Drop from 240MHz to 160MHz
+    setCpuFrequencyMhz(240);                // Restore to 240MHz for stable BT+WiFi
     WiFi.setSleep(WIFI_PS_MIN_MODEM);       // Enable Wi-Fi modem sleep
-    esp_bt_sleep_enable();                  // Enable BT power management
+    // Bluepad32 handles its own BT stack initialization.
     
     Serial.println("\n╔══════════════════════════════╗");
     Serial.println("║   DeeThunder RC Car Booting  ║");

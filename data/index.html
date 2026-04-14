@@ -578,6 +578,38 @@
     .gps-card, .sys-card, .imu-card { grid-column: span 1; }
     .imu-grid { grid-template-columns: 1fr; }
   }
+
+  /* ── Pair Button ─────────────────────────────────────────── */
+  #pair-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border: 1px solid var(--orange);
+    background: var(--orange-dim);
+    color: var(--orange);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  #pair-btn:hover:not(:disabled) {
+    background: var(--orange);
+    color: #000;
+    box-shadow: var(--glow-orange);
+  }
+  #pair-btn:disabled {
+    border-color: var(--red);
+    background: var(--red-dim);
+    color: var(--red);
+    cursor: default;
+    animation: pairingPulse 0.8s ease-in-out infinite;
+  }
+  @keyframes pairingPulse {
+    0%,100% { box-shadow: none; }
+    50%      { box-shadow: 0 0 18px rgba(255,42,74,0.5); }
+  }
 </style>
 </head>
 <body>
@@ -602,6 +634,7 @@
         <span id="ps4-label">PAD DISCONNECTED</span>
       </div>
       <div id="uptime-display">UP: 00:00:00</div>
+      <button id="pair-btn" onclick="triggerPairing()">&#x1F4F1; Pair New Controller</button>
     </div>
   </header>
 
@@ -1106,6 +1139,40 @@ function updateDashboard(d) {
 // Initial horizon draw
 drawHorizon(0, 0);
 connect();
+
+// ── Pairing Button Logic ────────────────────────────────
+let pairingCountdown = null;
+
+function triggerPairing() {
+  const btn = document.getElementById('pair-btn');
+  if (btn.disabled) return;
+
+  fetch('/pair', { method: 'POST' })
+    .then(r => r.json())
+    .then(() => startPairingCountdown())
+    .catch(() => {
+      // If fetch fails (WS already claimed the connection), try again
+      setTimeout(() => fetch('/pair', { method: 'POST' })
+        .then(() => startPairingCountdown()), 200);
+    });
+}
+
+function startPairingCountdown() {
+  const btn = document.getElementById('pair-btn');
+  let secs = 60;
+  btn.disabled = true;
+
+  clearInterval(pairingCountdown);
+  pairingCountdown = setInterval(() => {
+    secs--;
+    btn.textContent = `PAIRING... ${secs}s (Hold Share+PS)`;
+    if (secs <= 0) {
+      clearInterval(pairingCountdown);
+      btn.disabled = false;
+      btn.textContent = '\u{1F4F1} Pair New Controller';
+    }
+  }, 1000);
+}
 </script>
 </body>
 </html>

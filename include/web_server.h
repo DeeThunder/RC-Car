@@ -15,6 +15,10 @@
 #include <SPIFFS.h>
 #include "telemetry.h"
 #include "config.h"
+#include "ps4_handler.h"
+
+// Forward-declared so WebServerManager can call triggerPairing()
+extern PS4Handler ps4;
 
 class WebServerManager {
 public:
@@ -41,6 +45,7 @@ private:
     void handleNewClient(WiFiClient& incoming);
     void serveFile(WiFiClient& c, const char* path, const char* mime);
     void send404(WiFiClient& c);
+    void handlePairRequest(WiFiClient& c);   // POST /pair — trigger Bluepad32 pairing
 
     // ── WebSocket handshake & framing ────────────────────────
     bool performWebSocketUpgrade(WiFiClient& c, const String& key);

@@ -43,13 +43,8 @@ void WebServerManager::update() {
         WiFiClient incoming = _server.available();
         if (incoming) {
             if (_wsConnected && _client.connected()) {
-                // Already have a WS client — reject the newcomer
-                incoming.println("HTTP/1.1 503 Service Unavailable\r\n"
-                                 "Content-Type: text/plain\r\n"
-                                 "Connection: close\r\n\r\n"
-                                 "Only one dashboard client allowed.");
+                // Reject the newcomer silently to avoid Serial spam
                 incoming.stop();
-                Serial.println("[Web] Rejected extra client (limit 1)");
             } else {
                 // No active WS client — handle this connection
                 _wsConnected = false;
@@ -133,6 +128,21 @@ void WebServerManager::handleNewClient(WiFiClient& incoming) {
                        "Connection: close\r\n\r\n"
                        "DeeThunder RC Car Online");
         incoming.stop();
+    } else if (path == "/pair") {
+        // POST /pair — triggers Bluepad32 pairing mode
+        handlePairRequest(incoming);
+    } else if (path == "/pairing-status") {
+        // GET /pairing-status — returns current pairing state as JSON
+        char resp[80];
+        snprintf(resp, sizeof(resp),
+                 "{\"pairing\":%s,\"connected\":%s}",
+                 ps4.isPairingMode()  ? "true" : "false",
+                 ps4.isConnected()    ? "true" : "false");
+        incoming.printf("HTTP/1.1 200 OK\r\n"
+                        "Content-Type: application/json\r\n"
+                        "Access-Control-Allow-Origin: *\r\n"
+                        "Connection: close\r\n\r\n%s", resp);
+        incoming.stop();
     } else {
         send404(incoming);
     }
@@ -174,6 +184,23 @@ void WebServerManager::send404(WiFiClient& c) {
             "Connection: close\r\n\r\n"
             "Not Found");
     c.stop();
+}
+
+// -------------------------------------------------------------
+// handlePairRequest() — POST /pair
+// Calls ps4.triggerPairing() which clears Bluetooth bonds and
+// opens a 60-second window for controller pairing.
+// Responds with JSON so the dashboard can update the UI.
+// -------------------------------------------------------------
+void WebServerManager::handlePairRequest(WiFiClient& c) {
+    ps4.triggerPairing();
+    c.print("HTTP/1.1 200 OK\r\n"
+            "Content-Type: application/json\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n\r\n"
+            "{\"ok\":true,\"message\":\"Pairing mode active — hold Share+PS on controller\"}");
+    c.stop();
+    Serial.println("[Web] /pair request handled.");
 }
 
 // ─────────────────────────────────────────────────────────────
