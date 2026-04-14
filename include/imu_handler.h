@@ -39,6 +39,10 @@ private:
     float _axOff = 0, _ayOff = 0, _azOff = 0;
     float _gxOff = 0, _gyOff = 0, _gzOff = 0;
 
+    // Circuit Breaker (Fail-safe)
+    uint8_t       _consecutiveErrors = 0;
+    unsigned long _lastFailMs        = 0;
+
     static constexpr float ACCEL_SCALE = 16384.0f;  // ±2g
     static constexpr float GYRO_SCALE  = 131.0f;    // ±250°/s
     static constexpr float G_TO_MS2    = 9.81f;

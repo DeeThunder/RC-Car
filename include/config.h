@@ -84,7 +84,7 @@ namespace TaskConfig {
     constexpr uint32_t CONTROL_PERIOD   = 10;    // 100 Hz
     constexpr uint32_t SENSOR_PERIOD    = 20;    // 50 Hz
     constexpr uint32_t GPS_PERIOD       = 100;   // 10 Hz
-    constexpr uint32_t TELEMETRY_PERIOD = 100;   // 10 Hz (Power Optimized)
+    constexpr uint32_t TELEMETRY_PERIOD = 250;   // 4 Hz (Coexistence Optimized)
 }
 
 // ── Haptic Feedback Config ────────────────────────────────────

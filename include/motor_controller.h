@@ -41,6 +41,13 @@ public:
 private:
     int16_t _leftSpeed  = 0;
     int16_t _rightSpeed = 0;
+    uint8_t _gear       = 2;  // Default to Gear 2
+
+public:
+    void setGear(uint8_t g) { _gear = constrain(g, 1, 3); }
+    void incrementGear()    { if (_gear < 3) _gear++; }
+    void decrementGear()    { if (_gear > 1) _gear--; }
+    uint8_t currentGear() const { return _gear; }
 
     // Write PWM + direction to hardware
     void applyLeft(int16_t speed);

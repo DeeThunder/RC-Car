@@ -66,7 +66,15 @@ int16_t MotorController::axisToSpeed(int8_t axis) const {
     if (abs(axis) < PS4Config::DEAD_ZONE) return 0;
 
     // Remap -128..127 → -255..255, preserving sign
-    return (int16_t)map(axis, -128, 127, -255, 255);
+    int16_t rawSpeed = (int16_t)map(axis, -128, 127, -255, 255);
+
+    // Apply gear scaling
+    float multiplier = 1.0f;
+    if      (_gear == 1) multiplier = 0.35f; // Slow
+    else if (_gear == 2) multiplier = 0.70f; // Normal
+    else                 multiplier = 1.00f; // Turbo
+
+    return (int16_t)(rawSpeed * multiplier);
 }
 
 void MotorController::applyLeft(int16_t speed) {

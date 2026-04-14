@@ -6,6 +6,7 @@
 bool IMUHandler::begin() {
     Wire.begin(IMUPins::SDA, IMUPins::SCL);
     Wire.setClock(400000);  // 400kHz fast mode
+    Wire.setTimeOut(5);     // STRICT: 5ms timeout to prevent hanging the RTOS task
 
     // Wake up MPU6050
     Wire.beginTransmission(MPU_ADDR);
@@ -82,14 +83,29 @@ void IMUHandler::calibrate(uint16_t samples) {
 IMUReading IMUHandler::read() {
     IMUReading r;
 
+    // Fail-safe: if we are in a cooldown period, just return invalid
+    // Tightened to 3 errors for faster failover during sensitive handshakes
+    if (_consecutiveErrors >= 3 && (millis() - _lastFailMs < 5000)) {
+        return r; 
+    }
+
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(0x3B); 
     if (Wire.endTransmission(false) != 0) {
-        return r; // returns valid=false
+        _consecutiveErrors++;
+        _lastFailMs = millis();
+        return r; 
     }
     
     Wire.requestFrom(MPU_ADDR, (uint8_t)14, (uint8_t)true);
-    if (Wire.available() < 14) return r;
+    if (Wire.available() < 14) {
+        _consecutiveErrors++;
+        _lastFailMs = millis();
+        return r;
+    }
+
+    // Reset on success
+    _consecutiveErrors = 0;
 
     int16_t rax = (Wire.read() << 8) | Wire.read();
     int16_t ray = (Wire.read() << 8) | Wire.read();

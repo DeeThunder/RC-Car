@@ -13,6 +13,7 @@ struct PS4Input {
     int8_t  lx = 0, ly = 0;       // Left stick  -128..127
     int8_t  rx = 0, ry = 0;       // Right stick -128..127
     uint8_t l2 = 0, r2 = 0;       // Analog triggers 0..255
+    uint8_t dpad = 0;             // D-Pad bitmask (0x01=Up, 0x02=Down, etc)
     bool    cross    = false;
     bool    circle   = false;
     bool    square   = false;
@@ -88,6 +89,8 @@ public:
         in.l2 = (uint8_t)(_controller->brake()    / 4);
         in.r2 = (uint8_t)(_controller->throttle() / 4);
 
+        in.dpad = _controller->dpad();
+
         // Face buttons (Cross=A, Circle=B, Square=X, Triangle=Y)
         in.cross    = _controller->a();
         in.circle   = _controller->b();
@@ -115,6 +118,7 @@ public:
 
 private:
     static ControllerPtr  _controller;
+    static int           _failCount;       // Counter for GAP connection failures
     mutable bool          _pairingMode      = false;
     mutable unsigned long _pairingStartedMs = 0;
 
@@ -123,6 +127,7 @@ private:
             Serial.printf("[BP32] Controller connected: %s\n",
                           ctl->getModelName().c_str());
             _controller = ctl;
+            _failCount  = 0; // Reset counter on success
         } else {
             Serial.println("[BP32] Rejected extra controller (single-pad mode).");
             ctl->disconnect();
@@ -133,6 +138,15 @@ private:
         if (_controller == ctl) {
             Serial.println("[BP32] Controller disconnected.");
             _controller = nullptr;
+        } else {
+            // If we get a disconnect event for a device that never fully "connected"
+            // it's likely part of the GAP connection failure loop.
+            _failCount++;
+            if (_failCount >= 5) {
+                Serial.println("[BP32] Loop detected (5+ fails) — Force clearing keys!");
+                BP32.forgetBluetoothKeys();
+                _failCount = 0;
+            }
         }
     }
 };

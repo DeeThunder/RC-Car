@@ -42,14 +42,8 @@ void WebServerManager::update() {
     if (_server.hasClient()) {
         WiFiClient incoming = _server.available();
         if (incoming) {
-            if (_wsConnected && _client.connected()) {
-                // Reject the newcomer silently to avoid Serial spam
-                incoming.stop();
-            } else {
-                // No active WS client — handle this connection
-                _wsConnected = false;
-                handleNewClient(incoming);
-            }
+            // Always handle the newcomer to check if it's a command/file request
+            handleNewClient(incoming);
         }
     }
 
@@ -100,6 +94,16 @@ void WebServerManager::handleNewClient(WiFiClient& incoming) {
                      request.indexOf("Upgrade: WebSocket") > 0;
 
     if (isUpgrade && (path == "/ws" || path == "/")) {
+        // CONFLICT CHECK: Only allow one WebSocket client at a time
+        if (_wsConnected && _client.connected()) {
+            Serial.println("[Web] Rejecting 2nd WS connection (already active)");
+            incoming.print("HTTP/1.1 503 Service Unavailable\r\n"
+                           "Connection: close\r\n\r\n"
+                           "Multiple clients not supported");
+            incoming.stop();
+            return;
+        }
+
         // Extract Sec-WebSocket-Key
         int keyIdx = request.indexOf("Sec-WebSocket-Key: ");
         if (keyIdx < 0) {

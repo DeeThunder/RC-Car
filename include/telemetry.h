@@ -31,6 +31,7 @@ struct TelemetryData {
     int16_t right_speed = 0;
     bool    ps4_connected = false;
     uint8_t drive_mode  = 0;    // 0=tank, 1=arcade
+    uint8_t gear        = 1;    // 1..3
 
     // Battery
     float   battery_voltage = 0.0f;

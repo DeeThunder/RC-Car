@@ -10,6 +10,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "esp_bt.h"
+#include "esp_coexist.h"
 
 #include "config.h"
 #include "telemetry.h"
@@ -23,6 +24,7 @@
 
 // ── Hardware singletons ───────────────────────────────────────
 ControllerPtr PS4Handler::_controller = nullptr;
+int           PS4Handler::_failCount  = 0;
 MotorController  motors;
 PS4Handler       ps4;
 IMUHandler       imu;
@@ -109,7 +111,7 @@ void setup() {
     // ── Power Efficiency ─────────────────────────────────────
     setCpuFrequencyMhz(240);                // Restore to 240MHz for stable BT+WiFi
     WiFi.setSleep(WIFI_PS_MIN_MODEM);       // Enable Wi-Fi modem sleep
-    // Bluepad32 handles its own BT stack initialization.
+    esp_coex_preference_set(ESP_COEX_PREFER_BT); // Prioritize Bluetooth handshake over WiFi
     
     Serial.println("\n╔══════════════════════════════╗");
     Serial.println("║   DeeThunder RC Car Booting  ║");

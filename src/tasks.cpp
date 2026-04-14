@@ -32,8 +32,11 @@ extern WebServerManager webServer;
 void controlTask(void* pvParams) {
     TickType_t xLastWake = xTaskGetTickCount();
 
-    uint8_t driveMode   = 0;    // 0 = tank, 1 = arcade
-    bool    prevOptions = false;
+    uint8_t driveMode    = 0;    // 0 = tank, 1 = arcade
+    bool    prevTriangle = false;
+    bool    prevSquare   = false;
+    bool    prevCircle   = false;
+    bool    prevOptions  = false;
 
     HapticController haptic;   // owns rumble state machine
 
@@ -42,31 +45,61 @@ void controlTask(void* pvParams) {
         Telemetry.setPS4Connected(in.connected);
 
         if (in.connected) {
-            // Options button toggles drive mode
-            if (in.options && !prevOptions) {
+            // Options OR Circle button toggles drive mode
+            if ((in.options && !prevOptions) || (in.circle && !prevCircle)) {
                 driveMode = (driveMode == 0) ? 1 : 0;
                 Serial.printf("[Control] Drive mode: %s\n",
                               driveMode == 0 ? "Tank" : "Arcade");
             }
             prevOptions = in.options;
+            prevCircle  = in.circle;
+
+            // Triangle / Square cycle gears
+            if (in.triangle && !prevTriangle) {
+                motors.incrementGear();
+                Serial.printf("[Control] Gear UP: %d\n", motors.currentGear());
+            }
+            if (in.square && !prevSquare) {
+                motors.decrementGear();
+                Serial.printf("[Control] Gear DOWN: %d\n", motors.currentGear());
+            }
+            prevTriangle = in.triangle;
+            prevSquare   = in.square;
 
             // Cross = emergency stop — also silences rumble immediately
             if (in.cross) {
                 motors.stop();
                 haptic.stopAll();
                 Telemetry.setMotors(0, 0);
+
             } else {
-                if (driveMode == 0) {
-                    motors.tankDrive(in.ly, in.ry);
+                // Handle D-Pad (Arrows) movement if sticks are neutral
+                bool sticksNeutral = (abs(in.ly) < PS4Config::DEAD_ZONE &&
+                                      abs(in.ry) < PS4Config::DEAD_ZONE &&
+                                      abs(in.lx) < PS4Config::DEAD_ZONE);
+
+                if (sticksNeutral && in.dpad != 0) {
+                    // Map D-Pad to virtual axis values
+                    int8_t vLy = 0, vRy = 0, vLx = 0;
+                    if (in.dpad & 0x01) { vLy = 127; vRy = 127; } // Up
+                    if (in.dpad & 0x02) { vLy = -128; vRy = -128; } // Down
+                    if (in.dpad & 0x04) { vLx = -128; } // Left
+                    if (in.dpad & 0x08) { vLx = 127; }  // Right
+
+                    if (driveMode == 0) motors.tankDrive(vLy, vRy);
+                    else                motors.arcadeDrive(vLy, vLx);
                 } else {
-                    motors.arcadeDrive(in.ly, in.lx);
+                    // Stick movement
+                    if (driveMode == 0) motors.tankDrive(in.ly, in.ry);
+                    else                motors.arcadeDrive(in.ly, in.lx);
                 }
                 Telemetry.setMotors(motors.leftSpeed(), motors.rightSpeed());
             }
 
-            // Drive mode update
+            // Telemetry state update
             TelemetryData snap = Telemetry.read();
             snap.drive_mode = driveMode;
+            snap.gear       = motors.currentGear();
             Telemetry.write(snap);
 
             // ── Haptic feedback ───────────────────────────────
@@ -93,6 +126,12 @@ void sensorTask(void* pvParams) {
     TickType_t xLastWake = xTaskGetTickCount();
 
     for (;;) {
+        // TOTAL SILENCE: Kill all sensor activity during pairing window
+        if (ps4.isPairingMode()) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
         // IMU read
         IMUReading r = imu.read();
         if (r.valid) {
@@ -128,6 +167,12 @@ void gpsTask(void* pvParams) {
     TickType_t xLastWake = xTaskGetTickCount();
 
     for (;;) {
+        // TOTAL SILENCE: Kill GPS task during pairing window
+        if (ps4.isPairingMode()) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
         gps.update();   // drain UART buffer into TinyGPS++
         GPSReading r = gps.read();
         Telemetry.setGPS(r.latitude, r.longitude,
@@ -153,6 +198,20 @@ void telemetryTask(void* pvParams) {
         // Skip telemetry while pairing to give Bluetooth 100% antenna access
         if (ps4.isPairingMode()) {
             vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
+        // THROTLE WiFi: If no controller is connected, stop telemetry until 
+        // connection is established. This keeps antenna clear for BT handshake.
+        if (!ps4.isConnected()) {
+            // EXTREME SILENCE: Pause almost all WiFi to ensure handshake success.
+            // Only poll server once every 2 seconds.
+            static uint8_t silenceTick = 0;
+            if (++silenceTick >= 8) { // 250ms * 8 = 2000ms
+                silenceTick = 0;
+                webServer.update(); 
+            }
+            vTaskDelayUntil(&xLastWake, pdMS_TO_TICKS(TaskConfig::TELEMETRY_PERIOD));
             continue;
         }
 
