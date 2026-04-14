@@ -115,3 +115,4 @@ pio test -e esp32dev
 ## 📄 License & Credits
 Developed by **DeeThunder Nexus Ventures**.  
 For professional reproduction or licensing, please contact us at info@deethundernexus.org.
+For professional reproduction or licensing, please contact us at info@deethundernexus.org.
