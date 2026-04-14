@@ -1,4 +1,4 @@
-# DeeThunder RC Car — Pro Firmware
+#RC Car — Firmware
 
 **High-performance, bare-metal RC car firmware for the Original ESP32 Classic.**  
 Designed for sub-millisecond control latency, real-time telemetry, and rugged stability using a PS4 DualShock 4 controller.
@@ -114,4 +114,4 @@ pio test -e esp32dev
 
 ## 📄 License & Credits
 Developed by **DeeThunder Nexus Ventures**.  
-For professional reproduction or licensing, please contact us at [your-email@example.com].
+For professional reproduction or licensing, please contact us at info@deethundernexus.org.
