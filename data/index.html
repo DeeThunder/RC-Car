@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DeeThunder RC — Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  /* ── Design System ──────────────────────────────────────── */
+  :root {
+    --bg:          #060810;
+    --surface:     #0c1020;
+    --surface2:    #111828;
+    --border:      rgba(0,210,255,0.12);
+    --border-hot:  rgba(0,210,255,0.45);
+    --cyan:        #00d2ff;
+    --cyan-dim:    rgba(0,210,255,0.15);
+    --orange:      #ff6b1a;
+    --orange-dim:  rgba(255,107,26,0.15);
+    --green:       #00ff88;
+    --green-dim:   rgba(0,255,136,0.12);
+    --red:         #ff2a4a;
+    --red-dim:     rgba(255,42,74,0.15);
+    --yellow:      #ffd700;
+    --text-bright: #e8f4ff;
+    --text-mid:    #7a9bbf;
+    --text-dim:    #3a5570;
+    --glow-cyan:   0 0 20px rgba(0,210,255,0.4);
+    --glow-orange: 0 0 20px rgba(255,107,26,0.4);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-bright);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,210,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,210,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  #app {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 16px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--cyan);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    animation: scanH 3s linear infinite;
+  }
+  @keyframes scanH {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: var(--cyan);
+    text-shadow: var(--glow-cyan);
+  }
+  .logo span { color: var(--orange); }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-mid);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.3s;
+  }
+  .status-pill.online {
+    border-color: var(--green);
+    color: var(--green);
+    box-shadow: 0 0 12px rgba(0,255,136,0.2);
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  #uptime-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text-mid);
+  }
+
+  /* ── Main Grid ───────────────────────────────────────────── */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 14px;
+  }
+
+  @media (max-width: 900px) {
+    .dashboard { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .dashboard { grid-template-columns: 1fr; }
+  }
+
+  /* ── Card ────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--cyan);
+    opacity: 0.6;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:nth-child(1) { animation-delay: 0.05s; }
+  .card:nth-child(2) { animation-delay: 0.10s; }
+  .card:nth-child(3) { animation-delay: 0.15s; }
+  .card:nth-child(4) { animation-delay: 0.20s; }
+  .card:nth-child(5) { animation-delay: 0.25s; }
+  .card:nth-child(6) { animation-delay: 0.30s; }
+
+  .card.accent-orange::before { background: var(--orange); }
+  .card.accent-green::before  { background: var(--green); }
+  .card.accent-red::before    { background: var(--red); }
+
+  .card-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mid);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Speed Gauge ─────────────────────────────────────────── */
+  .speed-card { grid-column: span 1; }
+
+  .gauge-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .gauge-svg { width: 100%; max-width: 200px; }
+
+  .speed-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--cyan);
+    text-shadow: var(--glow-cyan);
+    line-height: 1;
+    text-align: center;
+  }
+  .speed-unit {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text-mid);
+    letter-spacing: 0.2em;
+    text-align: center;
+  }
+
+  /* ── Motor Bars ──────────────────────────────────────────── */
+  .motors-card { grid-column: span 1; }
+
+  .motor-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .motor-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mid);
+    text-align: center;
+  }
+  .motor-bar-track {
+    height: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .motor-bar-fill {
+    position: absolute;
+    top: 0; height: 100%;
+    background: var(--cyan);
+    transition: width 0.1s, left 0.1s, background 0.2s;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .motor-bar-fill.reverse { background: var(--orange); }
+  .motor-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-bright);
+    text-align: right;
+  }
+
+  .drive-mode-badge {
+    text-align: center;
+    margin-top: 8px;
+    padding: 4px 12px;
+    border: 1px solid var(--border-hot);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--cyan);
+  }
+
+  /* ── Battery ─────────────────────────────────────────────── */
+  .battery-card { grid-column: span 1; }
+
+  .battery-visual {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 14px;
+  }
+  .battery-body {
+    flex: 1;
+    height: 28px;
+    border: 2px solid var(--border-hot);
+    position: relative;
+    border-radius: 3px;
+  }
+  .battery-body::after {
+    content: '';
+    position: absolute;
+    right: -7px; top: 50%;
+    transform: translateY(-50%);
+    width: 5px; height: 12px;
+    background: var(--border-hot);
+    border-radius: 0 2px 2px 0;
+  }
+  .battery-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), #00ddaa);
+    border-radius: 2px;
+    transition: width 1s ease, background 1s ease;
+  }
+  .battery-fill.med  { background: linear-gradient(90deg, var(--yellow), #ffaa00); }
+  .battery-fill.low  { background: linear-gradient(90deg, var(--red), #ff6060); animation: battWarn 1s ease infinite; }
+  @keyframes battWarn {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.6; }
+  }
+
+  .battery-pct {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--green);
+    transition: color 1s;
+  }
+  .battery-pct.med { color: var(--yellow); }
+  .battery-pct.low { color: var(--red); }
+
+  .battery-voltage {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text-mid);
+    text-align: center;
+  }
+
+  /* ── IMU Card ────────────────────────────────────────────── */
+  .imu-card { grid-column: span 2; }
+
+  .imu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .imu-section-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--text-mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .axis-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .axis-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    width: 16px;
+    color: var(--cyan);
+    flex-shrink: 0;
+  }
+  .axis-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .axis-bar-center {
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 1px;
+    background: var(--border-hot);
+  }
+  .axis-bar-fill {
+    position: absolute;
+    top: 0; height: 100%;
+    background: var(--cyan);
+    transition: width 0.05s, left 0.05s;
+  }
+  .axis-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-bright);
+    width: 52px;
+    text-align: right;
+  }
+
+  /* Horizon */
+  .horizon-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .horizon-canvas {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    border: 2px solid var(--border-hot);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── GPS Card ────────────────────────────────────────────── */
+  .gps-card { grid-column: span 3; }
+
+  .gps-layout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 700px) {
+    .gps-layout { grid-template-columns: 1fr; }
+    .gps-card   { grid-column: span 2; }
+    .imu-card   { grid-column: span 2; }
+  }
+
+  .gps-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 20px;
+    min-width: 220px;
+  }
+
+  .gps-stat-item {}
+  .gps-stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .gps-stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-top: 2px;
+  }
+  .gps-stat-value.coords {
+    font-size: 12px;
+    color: var(--cyan);
+    word-break: break-all;
+  }
+
+  .gps-no-fix {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 60px;
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    grid-column: span 2;
+  }
+
+  /* Map placeholder */
+  .map-container {
+    flex: 1;
+    height: 180px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  #map-canvas { width: 100%; height: 100%; }
+  .map-crosshair {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--orange);
+    font-size: 20px;
+    pointer-events: none;
+    text-shadow: var(--glow-orange);
+  }
+  .map-link {
+    position: absolute;
+    bottom: 8px; right: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--cyan);
+    text-decoration: none;
+    padding: 3px 8px;
+    border: 1px solid var(--border-hot);
+    letter-spacing: 0.1em;
+  }
+  .map-link:hover { background: var(--cyan-dim); }
+
+  /* ── System Footer ───────────────────────────────────────── */
+  .sys-card {
+    grid-column: span 3;
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .sys-card::before { display: none; }
+
+  .sys-metric {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sys-metric span { color: var(--text-mid); }
+
+  /* ── Connection Lost Overlay ─────────────────────────────── */
+  #offline-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(6,8,16,0.92);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #offline-overlay.show { display: flex; }
+  .offline-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--red);
+    text-shadow: 0 0 30px rgba(255,42,74,0.6);
+    letter-spacing: 0.2em;
+  }
+  .offline-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text-mid);
+    animation: blink 1.2s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── Responsive final tweaks ─────────────────────────────── */
+  @media (max-width: 900px) {
+    .gps-card, .sys-card { grid-column: span 2; }
+  }
+  @media (max-width: 600px) {
+    .gps-card, .sys-card, .imu-card { grid-column: span 1; }
+    .imu-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="offline-overlay">
+  <div class="offline-title">⚡ CONNECTION LOST</div>
+  <div class="offline-sub">ATTEMPTING RECONNECT...</div>
+</div>
+
+<div id="app">
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">DEE<span>THUNDER</span> RC</div>
+    <div class="header-status">
+      <div id="ws-pill" class="status-pill">
+        <div class="status-dot"></div>
+        <span id="ws-label">OFFLINE</span>
+      </div>
+      <div id="ps4-pill" class="status-pill">
+        <div class="status-dot"></div>
+        <span id="ps4-label">PAD DISCONNECTED</span>
+      </div>
+      <div id="uptime-display">UP: 00:00:00</div>
+    </div>
+  </header>
+
+  <!-- ── Dashboard Grid ────────────────────────────────────── -->
+  <div class="dashboard">
+
+    <!-- Speed Gauge -->
+    <div class="card speed-card">
+      <div class="card-title">Speed</div>
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 200 120" id="speedGaugeSVG">
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#00d2ff"/>
+              <stop offset="100%" stop-color="#ff6b1a"/>
+            </linearGradient>
+          </defs>
+          <!-- Track -->
+          <path d="M 20 110 A 80 80 0 0 1 180 110"
+                fill="none" stroke="#111828" stroke-width="14" stroke-linecap="round"/>
+          <!-- Fill -->
+          <path id="gauge-arc" d="M 20 110 A 80 80 0 0 1 180 110"
+                fill="none" stroke="url(#gaugeGrad)" stroke-width="14"
+                stroke-linecap="round"
+                stroke-dasharray="251.2" stroke-dashoffset="251.2"
+                style="transition: stroke-dashoffset 0.3s ease"/>
+          <!-- Tick marks -->
+          <g stroke="#1a2a3a" stroke-width="1" id="ticks"></g>
+          <!-- Needle -->
+          <line id="needle" x1="100" y1="110" x2="100" y2="40"
+                stroke="#ff6b1a" stroke-width="2.5" stroke-linecap="round"
+                style="transform-origin:100px 110px; transition: transform 0.3s ease"/>
+          <circle cx="100" cy="110" r="5" fill="#ff6b1a"/>
+        </svg>
+        <div class="speed-value" id="speed-val">0.0</div>
+        <div class="speed-unit">km/h</div>
+      </div>
+    </div>
+
+    <!-- Motor Output -->
+    <div class="card motors-card accent-orange">
+      <div class="card-title">Motor Output</div>
+      <div class="motor-row">
+        <div class="motor-label">LEFT</div>
+        <div class="motor-bar-track">
+          <div class="motor-bar-fill" id="motor-l-bar"></div>
+        </div>
+        <div class="motor-value" id="motor-l-val">0</div>
+      </div>
+      <div class="motor-row">
+        <div class="motor-label">RIGHT</div>
+        <div class="motor-bar-track">
+          <div class="motor-bar-fill" id="motor-r-bar"></div>
+        </div>
+        <div class="motor-value" id="motor-r-val">0</div>
+      </div>
+      <div class="drive-mode-badge" id="drive-mode-badge">TANK DRIVE</div>
+    </div>
+
+    <!-- Battery -->
+    <div class="card battery-card accent-green">
+      <div class="card-title">Battery</div>
+      <div class="battery-visual">
+        <div class="battery-body">
+          <div class="battery-fill" id="bat-fill" style="width:0%"></div>
+        </div>
+        <div class="battery-pct" id="bat-pct">--%</div>
+      </div>
+      <div class="battery-voltage" id="bat-voltage">-- V</div>
+    </div>
+
+    <!-- IMU -->
+    <div class="card imu-card">
+      <div class="card-title">IMU — MPU6050</div>
+      <div class="imu-grid">
+        <div>
+          <div class="imu-section-title">Accelerometer (m/s²)</div>
+          <div class="axis-row">
+            <div class="axis-label">X</div>
+            <div class="axis-bar-track">
+              <div class="axis-bar-center"></div>
+              <div class="axis-bar-fill" id="ax-bar"></div>
+            </div>
+            <div class="axis-val" id="ax-val">0.00</div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-label">Y</div>
+            <div class="axis-bar-track">
+              <div class="axis-bar-center"></div>
+              <div class="axis-bar-fill" id="ay-bar"></div>
+            </div>
+            <div class="axis-val" id="ay-val">0.00</div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-label">Z</div>
+            <div class="axis-bar-track">
+              <div class="axis-bar-center"></div>
+              <div class="axis-bar-fill" id="az-bar"></div>
+            </div>
+            <div class="axis-val" id="az-val">9.81</div>
+          </div>
+          <div class="imu-section-title" style="margin-top:12px">Gyroscope (°/s)</div>
+          <div class="axis-row">
+            <div class="axis-label">X</div>
+            <div class="axis-bar-track">
+              <div class="axis-bar-center"></div>
+              <div class="axis-bar-fill" id="gx-bar" style="background:var(--orange)"></div>
+            </div>
+            <div class="axis-val" id="gx-val">0.0</div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-label">Y</div>
+            <div class="axis-bar-track">
+              <div class="axis-bar-center"></div>
+              <div class="axis-bar-fill" id="gy-bar" style="background:var(--orange)"></div>
+            </div>
+            <div class="axis-val" id="gy-val">0.0</div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-label">Z</div>
+            <div class="axis-bar-track">
+              <div class="axis-bar-center"></div>
+              <div class="axis-bar-fill" id="gz-bar" style="background:var(--orange)"></div>
+            </div>
+            <div class="axis-val" id="gz-val">0.0</div>
+          </div>
+        </div>
+        <!-- Artificial Horizon -->
+        <div>
+          <div class="imu-section-title">Attitude</div>
+          <div class="horizon-wrap">
+            <div class="horizon-canvas">
+              <canvas id="horizonCanvas" width="140" height="140"></canvas>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+            <div>
+              <div class="gps-stat-label">Roll</div>
+              <div class="gps-stat-value" id="roll-val" style="font-size:18px;color:var(--cyan)">0.0°</div>
+            </div>
+            <div>
+              <div class="gps-stat-label">Pitch</div>
+              <div class="gps-stat-value" id="pitch-val" style="font-size:18px;color:var(--orange)">0.0°</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GPS -->
+    <div class="card gps-card">
+      <div class="card-title">GPS — Location & Navigation</div>
+      <div class="gps-layout">
+        <div class="gps-stats">
+          <div class="gps-stat-item">
+            <div class="gps-stat-label">Latitude</div>
+            <div class="gps-stat-value coords" id="gps-lat">Acquiring...</div>
+          </div>
+          <div class="gps-stat-item">
+            <div class="gps-stat-label">Longitude</div>
+            <div class="gps-stat-value coords" id="gps-lng">Acquiring...</div>
+          </div>
+          <div class="gps-stat-item">
+            <div class="gps-stat-label">GPS Speed</div>
+            <div class="gps-stat-value" id="gps-spd">-- km/h</div>
+          </div>
+          <div class="gps-stat-item">
+            <div class="gps-stat-label">Altitude</div>
+            <div class="gps-stat-value" id="gps-alt">-- m</div>
+          </div>
+          <div class="gps-stat-item">
+            <div class="gps-stat-label">Satellites</div>
+            <div class="gps-stat-value" id="gps-sats" style="color:var(--green)">--</div>
+          </div>
+          <div class="gps-stat-item">
+            <div class="gps-stat-label">Fix</div>
+            <div class="gps-stat-value" id="gps-fix" style="color:var(--red)">NO FIX</div>
+          </div>
+        </div>
+        <div class="map-container">
+          <canvas id="map-canvas"></canvas>
+          <div class="map-crosshair">✦</div>
+          <a class="map-link" id="maps-link" href="#" target="_blank">OPEN MAP ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="sys-card">
+      <div class="sys-metric">HEAP FREE: <span id="sys-heap">-- KB</span></div>
+      <div class="sys-metric">WIFI RSSI: <span id="sys-rssi">-- dBm</span></div>
+      <div class="sys-metric">WS CLIENTS: <span id="sys-clients">--</span></div>
+      <div class="sys-metric">CORE: <span>ESP32-S3 N16R8 @ 240MHz</span></div>
+      <div class="sys-metric">FIRMWARE: <span>DeeThunder v1.0</span></div>
+    </div>
+
+  </div><!-- /dashboard -->
+</div><!-- /app -->
+
+<script>
+// ── WebSocket Connection ──────────────────────────────────────
+const WS_URL = `ws://${location.hostname}/ws`;
+let ws, reconnectTimer;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    clearTimeout(reconnectTimer);
+    setOnline(true);
+  };
+
+  ws.onmessage = (e) => {
+    try { updateDashboard(JSON.parse(e.data)); }
+    catch(err) { console.warn('JSON parse error', err); }
+  };
+
+  ws.onclose = ws.onerror = () => {
+    setOnline(false);
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+}
+
+function setOnline(online) {
+  const pill  = document.getElementById('ws-pill');
+  const label = document.getElementById('ws-label');
+  const overlay = document.getElementById('offline-overlay');
+
+  if (online) {
+    pill.classList.add('online');
+    label.textContent = 'LIVE';
+    overlay.classList.remove('show');
+  } else {
+    pill.classList.remove('online');
+    label.textContent = 'OFFLINE';
+    overlay.classList.add('show');
+  }
+}
+
+// ── Uptime formatter ──────────────────────────────────────────
+function fmtUptime(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return [h,m,sec].map(v => String(v).padStart(2,'0')).join(':');
+}
+
+// ── Motor bar helper ──────────────────────────────────────────
+function setMotorBar(barEl, valEl, value) {
+  const abs = Math.abs(value);
+  const pct = (abs / 255) * 50;   // 50% of track width each side
+  const fwd = value >= 0;
+
+  barEl.classList.toggle('reverse', !fwd);
+  if (fwd) {
+    barEl.style.left  = '50%';
+    barEl.style.width = pct + '%';
+  } else {
+    barEl.style.left  = (50 - pct) + '%';
+    barEl.style.width = pct + '%';
+  }
+  valEl.textContent = value;
+}
+
+// ── Axis bar helper ───────────────────────────────────────────
+function setAxisBar(barEl, value, maxVal) {
+  const clamped = Math.max(-maxVal, Math.min(maxVal, value));
+  const pct = (Math.abs(clamped) / maxVal) * 50;
+  if (clamped >= 0) {
+    barEl.style.left  = '50%';
+    barEl.style.width = pct + '%';
+  } else {
+    barEl.style.left  = (50 - pct) + '%';
+    barEl.style.width = pct + '%';
+  }
+}
+
+// ── Speed gauge arc ───────────────────────────────────────────
+const MAX_SPEED_KMH = 20;
+function setSpeedGauge(spd) {
+  const arc    = document.getElementById('gauge-arc');
+  const needle = document.getElementById('needle');
+  const total  = 251.2;   // arc length for 180° semi-circle
+  const ratio  = Math.min(spd / MAX_SPEED_KMH, 1);
+  arc.style.strokeDashoffset = total - ratio * total;
+  const angle = -90 + ratio * 180;   // -90° (left) to +90° (right)
+  needle.style.transform = `rotate(${angle}deg)`;
+}
+
+// ── Artificial Horizon ────────────────────────────────────────
+const horizCanvas = document.getElementById('horizonCanvas');
+const hCtx = horizCanvas.getContext('2d');
+
+function drawHorizon(roll, pitch) {
+  const W = 140, H = 140, CX = 70, CY = 70, R = 68;
+  hCtx.clearRect(0, 0, W, H);
+
+  // Clip to circle
+  hCtx.save();
+  hCtx.beginPath();
+  hCtx.arc(CX, CY, R, 0, Math.PI * 2);
+  hCtx.clip();
+
+  // Sky / ground based on pitch offset
+  const pitchOffset = (pitch / 90) * R;
+  hCtx.save();
+  hCtx.translate(CX, CY);
+  hCtx.rotate(roll * Math.PI / 180);
+
+  // Sky
+  hCtx.fillStyle = '#0a2040';
+  hCtx.fillRect(-R, -R * 2, R * 2, R * 2 + pitchOffset);
+  // Ground
+  hCtx.fillStyle = '#3a1a08';
+  hCtx.fillRect(-R, pitchOffset, R * 2, R * 2);
+  // Horizon line
+  hCtx.strokeStyle = '#ffffff44';
+  hCtx.lineWidth = 1;
+  hCtx.beginPath();
+  hCtx.moveTo(-R, pitchOffset);
+  hCtx.lineTo(R, pitchOffset);
+  hCtx.stroke();
+  hCtx.restore();
+
+  // Fixed aircraft symbol
+  hCtx.strokeStyle = '#ff6b1a';
+  hCtx.lineWidth = 2.5;
+  // Left wing
+  hCtx.beginPath(); hCtx.moveTo(CX - 30, CY); hCtx.lineTo(CX - 10, CY); hCtx.stroke();
+  // Right wing
+  hCtx.beginPath(); hCtx.moveTo(CX + 10, CY); hCtx.lineTo(CX + 30, CY); hCtx.stroke();
+  // Center dot
+  hCtx.fillStyle = '#ff6b1a';
+  hCtx.beginPath(); hCtx.arc(CX, CY, 3, 0, Math.PI * 2); hCtx.fill();
+
+  hCtx.restore();
+
+  // Border
+  hCtx.strokeStyle = 'rgba(0,210,255,0.3)';
+  hCtx.lineWidth = 1;
+  hCtx.beginPath();
+  hCtx.arc(CX, CY, R, 0, Math.PI * 2);
+  hCtx.stroke();
+}
+
+// ── Map trail canvas ──────────────────────────────────────────
+const mapCanvas = document.getElementById('map-canvas');
+const mCtx = mapCanvas.getContext('2d');
+let trail = [], firstLat = null, firstLng = null;
+const TRAIL_MAX = 200;
+
+function resizeMapCanvas() {
+  const container = mapCanvas.parentElement;
+  mapCanvas.width  = container.clientWidth;
+  mapCanvas.height = container.clientHeight;
+}
+window.addEventListener('resize', resizeMapCanvas);
+resizeMapCanvas();
+
+function updateMap(lat, lng, valid) {
+  if (!valid) return;
+  if (firstLat === null) { firstLat = lat; firstLng = lng; }
+
+  trail.push({ lat, lng });
+  if (trail.length > TRAIL_MAX) trail.shift();
+
+  const W = mapCanvas.width, H = mapCanvas.height;
+  const scale = 50000;  // pixels per degree — adjust for zoom
+
+  mCtx.clearRect(0, 0, W, H);
+
+  // Grid
+  mCtx.strokeStyle = 'rgba(0,210,255,0.06)';
+  mCtx.lineWidth = 1;
+  for (let x = 0; x < W; x += 30) { mCtx.beginPath(); mCtx.moveTo(x,0); mCtx.lineTo(x,H); mCtx.stroke(); }
+  for (let y = 0; y < H; y += 30) { mCtx.beginPath(); mCtx.moveTo(0,y); mCtx.lineTo(W,y); mCtx.stroke(); }
+
+  if (trail.length < 2) return;
+
+  // Trail
+  mCtx.strokeStyle = 'rgba(0,210,255,0.5)';
+  mCtx.lineWidth = 1.5;
+  mCtx.beginPath();
+  trail.forEach((pt, i) => {
+    const px = W/2 + (pt.lng - firstLng) * scale;
+    const py = H/2 - (pt.lat - firstLat) * scale;
+    i === 0 ? mCtx.moveTo(px, py) : mCtx.lineTo(px, py);
+  });
+  mCtx.stroke();
+
+  // Current position dot
+  const last = trail[trail.length - 1];
+  const cx = W/2 + (last.lng - firstLng) * scale;
+  const cy = H/2 - (last.lat - firstLat) * scale;
+  mCtx.fillStyle = '#ff6b1a';
+  mCtx.shadowColor = '#ff6b1a';
+  mCtx.shadowBlur = 10;
+  mCtx.beginPath();
+  mCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+  mCtx.fill();
+  mCtx.shadowBlur = 0;
+}
+
+// ── Main update function ──────────────────────────────────────
+function updateDashboard(d) {
+  // Uptime
+  document.getElementById('uptime-display').textContent =
+    'UP: ' + fmtUptime(d.uptime || 0);
+
+  // PS4
+  const ps4Pill  = document.getElementById('ps4-pill');
+  const ps4Label = document.getElementById('ps4-label');
+  if (d.motors?.ps4) {
+    ps4Pill.classList.add('online');
+    ps4Label.textContent = 'PAD CONNECTED';
+  } else {
+    ps4Pill.classList.remove('online');
+    ps4Label.textContent = 'PAD DISCONNECTED';
+  }
+
+  // Speed
+  const spd = parseFloat(d.gps?.spd) || 0;
+  document.getElementById('speed-val').textContent = spd.toFixed(1);
+  setSpeedGauge(spd);
+
+  // Motors
+  const L = parseInt(d.motors?.l) || 0;
+  const R = parseInt(d.motors?.r) || 0;
+  setMotorBar(
+    document.getElementById('motor-l-bar'),
+    document.getElementById('motor-l-val'), L);
+  setMotorBar(
+    document.getElementById('motor-r-bar'),
+    document.getElementById('motor-r-val'), R);
+  document.getElementById('drive-mode-badge').textContent =
+    d.motors?.mode === 1 ? 'ARCADE DRIVE' : 'TANK DRIVE';
+
+  // Battery
+  const pct = parseInt(d.battery?.pct) || 0;
+  const bat = document.getElementById('bat-fill');
+  const pctEl = document.getElementById('bat-pct');
+  bat.style.width = pct + '%';
+  pctEl.textContent = pct + '%';
+  ['low','med'].forEach(c => { bat.classList.remove(c); pctEl.classList.remove(c); });
+  if      (pct <= 20) { bat.classList.add('low'); pctEl.classList.add('low'); }
+  else if (pct <= 50) { bat.classList.add('med'); pctEl.classList.add('med'); }
+  document.getElementById('bat-voltage').textContent =
+    (parseFloat(d.battery?.v) || 0).toFixed(2) + ' V';
+
+  // IMU
+  if (d.imu) {
+    const ax = parseFloat(d.imu.ax), ay = parseFloat(d.imu.ay), az = parseFloat(d.imu.az);
+    const gx = parseFloat(d.imu.gx), gy = parseFloat(d.imu.gy), gz = parseFloat(d.imu.gz);
+    const roll = parseFloat(d.imu.roll), pitch = parseFloat(d.imu.pitch);
+
+    setAxisBar(document.getElementById('ax-bar'), ax, 20);
+    setAxisBar(document.getElementById('ay-bar'), ay, 20);
+    setAxisBar(document.getElementById('az-bar'), az, 20);
+    setAxisBar(document.getElementById('gx-bar'), gx, 250);
+    setAxisBar(document.getElementById('gy-bar'), gy, 250);
+    setAxisBar(document.getElementById('gz-bar'), gz, 250);
+
+    document.getElementById('ax-val').textContent = ax.toFixed(2);
+    document.getElementById('ay-val').textContent = ay.toFixed(2);
+    document.getElementById('az-val').textContent = az.toFixed(2);
+    document.getElementById('gx-val').textContent = gx.toFixed(1);
+    document.getElementById('gy-val').textContent = gy.toFixed(1);
+    document.getElementById('gz-val').textContent = gz.toFixed(1);
+
+    document.getElementById('roll-val').textContent  = roll.toFixed(1) + '°';
+    document.getElementById('pitch-val').textContent = pitch.toFixed(1) + '°';
+
+    drawHorizon(roll, pitch);
+  }
+
+  // GPS
+  if (d.gps) {
+    const valid = d.gps.valid === true || d.gps.valid === 'true';
+    const lat = parseFloat(d.gps.lat), lng = parseFloat(d.gps.lng);
+
+    document.getElementById('gps-lat').textContent = valid ? lat.toFixed(6) : 'Acquiring...';
+    document.getElementById('gps-lng').textContent = valid ? lng.toFixed(6) : 'Acquiring...';
+    document.getElementById('gps-spd').textContent = parseFloat(d.gps.spd).toFixed(1) + ' km/h';
+    document.getElementById('gps-alt').textContent = parseFloat(d.gps.alt).toFixed(1) + ' m';
+    document.getElementById('gps-sats').textContent = d.gps.sats;
+    const fixEl = document.getElementById('gps-fix');
+    fixEl.textContent = valid ? 'FIX ✓' : 'NO FIX';
+    fixEl.style.color = valid ? 'var(--green)' : 'var(--red)';
+
+    if (valid) {
+      document.getElementById('maps-link').href =
+        `https://maps.google.com/?q=${lat},${lng}`;
+      updateMap(lat, lng, true);
+    }
+  }
+
+  // System
+  document.getElementById('sys-heap').textContent =
+    (parseFloat(d.heap_kb) || 0).toFixed(1) + ' KB';
+}
+
+// Initial horizon draw
+drawHorizon(0, 0);
+connect();
+</script>
+</body>
+</html>
