@@ -8,18 +8,10 @@
 
 #include <cstdint>
 
-// ── WiFi Credentials ──────────────────────────────────────────
-namespace WiFiConfig {
-    constexpr const char* SSID     = "YOUR_WIFI_SSID";
-    constexpr const char* PASSWORD = "YOUR_WIFI_PASSWORD";
-    constexpr const char* HOSTNAME = "deethunder-car";
-}
+#include "secret.h"
 
 // ── PS4 Controller ────────────────────────────────────────────
 namespace PS4Config {
-    // Run this sketch once to get your MAC: 
-    // https://github.com/aed3/PS4-esp32/tree/master/examples/Pair
-    constexpr const char* MAC_ADDRESS = "XX:XX:XX:XX:XX:XX";
     constexpr int16_t     DEAD_ZONE   = 20;   // joystick dead zone (0–128)
 }
 

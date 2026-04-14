@@ -49,4 +49,5 @@ CMakeListsPrivate.txt
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db
+# Secrets
+include/secret.h
