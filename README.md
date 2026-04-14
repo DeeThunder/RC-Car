@@ -89,13 +89,29 @@ pio test -e esp32dev
    ```bash
    git clone https://github.com/Deethunder/rc_car.git
    ```
-2. **Set Credentials**:  
-   Update `src/config.h` with your WiFi SSID, Password, and your PS4 MAC Address.
-3. **Upload Filesystem (SPIFFS)**:
+2. **Set Credentials**:
+   - Copy `include/secret_example.h` to `include/secret.h`.
+   - Update `include/secret.h` with your WiFi SSID, Password, and PS4 MAC Address.
+   - *Note: `secret.h` is ignored by Git to keep your credentials private.*
+
+3. **Controller Pairing**:
+   A PS4 controller only connects to the last "Master" address it has stored. Use these steps to pair it with your ESP32:
+   - **Get ESP32 MAC**: Run the built-in utility:
+     ```bash
+     pio run -e get_mac --target upload --target monitor
+     ```
+   - **Update Controller**:
+     1. Download **SixaxisPairTool** (Windows).
+     2. Connect your PS4 controller to your PC via a **USB Data Cable**.
+     3. Once detected, paste your **ESP32 MAC Address** into the "Change Master" box.
+     4. Click **Update**.
+   - Your controller is now ready to connect to the RC Car!
+
+4. **Upload Filesystem (SPIFFS)**:
    ```bash
    pio run --target uploadfs
    ```
-4. **Flash Firmware**:
+5. **Flash Firmware**:
    ```bash
    pio run --target upload
    ```
@@ -114,5 +130,4 @@ pio test -e esp32dev
 
 ## 📄 License & Credits
 Developed by **DeeThunder Nexus Ventures**.  
-For professional reproduction or licensing, please contact us at info@deethundernexus.org.
 For professional reproduction or licensing, please contact us at info@deethundernexus.org.
