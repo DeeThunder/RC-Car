@@ -19,6 +19,7 @@ extern IMUHandler       imu;
 extern GPSHandler       gps;
 extern BatteryMonitor   battery;
 extern WebServerManager webServer;
+extern void connectWiFi();   // defined in main.cpp
 
 // ─────────────────────────────────────────────────────────────
 // TASK 1: Control — PS4 → Motor output + Haptic feedback
@@ -195,8 +196,23 @@ void telemetryTask(void* pvParams) {
     TickType_t xLastWake = xTaskGetTickCount();
 
     for (;;) {
+        // ── Radio Exclusive Mode Management ────────────────
+        if (ps4.shouldDisableWiFi()) {
+            Serial.println("[WiFi] SHUTTING DOWN RADIO FOR EXCLUSIVE BT ACCESS...");
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            vTaskDelay(pdMS_TO_TICKS(100)); // allow stack to settle
+        }
+        
+        if (ps4.shouldEnableWiFi()) {
+            Serial.println("[WiFi] RESTORING RADIO...");
+            WiFi.mode(WIFI_STA);
+            connectWiFi();
+            webServer.begin(); // Re-init SPIFFS and Server
+        }
+
         // Skip telemetry while pairing to give Bluetooth 100% antenna access
-        if (ps4.isPairingMode()) {
+        if (ps4.isPairingMode() || WiFi.getMode() == WIFI_OFF) {
             vTaskDelay(pdMS_TO_TICKS(500));
             continue;
         }

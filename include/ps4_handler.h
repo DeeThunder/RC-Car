@@ -47,7 +47,9 @@ public:
         BP32.forgetBluetoothKeys();
         _pairingMode      = true;
         _pairingStartedMs = millis();
+        _requestWiFiOff   = true;  // Trigger radio-exclusive mode
         Serial.println("[BP32] Hold Share + PS on the controller NOW (60-second window).");
+        Serial.println("[WiFi] SHUTTING DOWN RADIO FOR EXCLUSIVE BT ACCESS...");
     }
 
     // Returns true while the 60-second pairing window is active.
@@ -55,10 +57,15 @@ public:
         if (!_pairingMode) return false;
         if (millis() - _pairingStartedMs > 60000UL) {
             _pairingMode = false;
+            _requestWiFiOn = true; // Trigger radio recovery
             Serial.println("[BP32] Pairing window expired.");
         }
         return _pairingMode;
     }
+
+    // Radio Management Interface for tasks.cpp
+    bool shouldDisableWiFi() { bool r = _requestWiFiOff; _requestWiFiOff = false; return r; }
+    bool shouldEnableWiFi()  { bool r = _requestWiFiOn;  _requestWiFiOn  = false; return r; }
 
     // ----------------------------------------------------------
     // read()  — must be called every control loop tick
@@ -70,6 +77,7 @@ public:
         if (_pairingMode && _controller && _controller->isConnected()) {
             Serial.println("[BP32] New controller paired successfully!");
             _pairingMode = false;
+            _requestWiFiOn = true; // Trigger radio recovery
         }
 
         PS4Input in;
@@ -120,6 +128,8 @@ private:
     static ControllerPtr  _controller;
     static int           _failCount;       // Counter for GAP connection failures
     mutable bool          _pairingMode      = false;
+    mutable bool          _requestWiFiOff   = false;
+    mutable bool          _requestWiFiOn    = false;
     mutable unsigned long _pairingStartedMs = 0;
 
     static void onConnectedController(ControllerPtr ctl) {

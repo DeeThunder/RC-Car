@@ -33,7 +33,7 @@ BatteryMonitor   battery;
 WebServerManager webServer;
 
 // ─────────────────────────────────────────────────────────────
-static void connectWiFi() {
+void connectWiFi() {
     Serial.printf("[WiFi] Connecting to %s", WiFiConfig::SSID);
     WiFi.setHostname(WiFiConfig::HOSTNAME);
     WiFi.begin(WiFiConfig::SSID, WiFiConfig::PASSWORD);

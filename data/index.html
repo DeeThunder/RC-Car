@@ -858,10 +858,11 @@ function connect() {
   };
 }
 
-function setOnline(online) {
+function setOnline(online, msg = 'OFFLINE') {
   const pill  = document.getElementById('ws-pill');
   const label = document.getElementById('ws-label');
   const overlay = document.getElementById('offline-overlay');
+  const overlayMsg = overlay.querySelector('p');
 
   if (online) {
     pill.classList.add('online');
@@ -871,6 +872,7 @@ function setOnline(online) {
     pill.classList.remove('online');
     label.textContent = 'OFFLINE';
     overlay.classList.add('show');
+    if (overlayMsg) overlayMsg.textContent = msg;
   }
 }
 
@@ -1144,16 +1146,19 @@ connect();
 let pairingCountdown = null;
 
 function triggerPairing() {
+  if (!confirm("WAIT! To ensure 100% stability, the Car will SHUT DOWN WiFi for 60 seconds while pairing.\n\nThis dashboard will go offline. Hold Share+PS immediately after hitting OK.")) return;
+
   const btn = document.getElementById('pair-btn');
   if (btn.disabled) return;
+
+  setOnline(false, "RADIO SILENCE ACTIVE: WiFi is off for 60s. Hold Share+PS on the controller NOW.");
 
   fetch('/pair', { method: 'POST' })
     .then(r => r.json())
     .then(() => startPairingCountdown())
     .catch(() => {
-      // If fetch fails (WS already claimed the connection), try again
-      setTimeout(() => fetch('/pair', { method: 'POST' })
-        .then(() => startPairingCountdown()), 200);
+      // If fetch fails (radio already dropping), just start the UI countdown
+      startPairingCountdown();
     });
 }
 
