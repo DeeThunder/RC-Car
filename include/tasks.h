@@ -16,4 +16,4 @@
 void controlTask   (void* pvParams);
 void sensorTask    (void* pvParams);
 void gpsTask       (void* pvParams);
-void telemetryTask (void* pvParams);
+void displayTask   (void* pvParams);

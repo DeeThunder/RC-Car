@@ -47,9 +47,7 @@ public:
         BP32.forgetBluetoothKeys();
         _pairingMode      = true;
         _pairingStartedMs = millis();
-        _requestWiFiOff   = true;  // Trigger radio-exclusive mode
         Serial.println("[BP32] Hold Share + PS on the controller NOW (60-second window).");
-        Serial.println("[WiFi] SHUTTING DOWN RADIO FOR EXCLUSIVE BT ACCESS...");
     }
 
     // Returns true while the 60-second pairing window is active.
@@ -57,15 +55,10 @@ public:
         if (!_pairingMode) return false;
         if (millis() - _pairingStartedMs > 60000UL) {
             _pairingMode = false;
-            _requestWiFiOn = true; // Trigger radio recovery
             Serial.println("[BP32] Pairing window expired.");
         }
         return _pairingMode;
     }
-
-    // Radio Management Interface for tasks.cpp
-    bool shouldDisableWiFi() { bool r = _requestWiFiOff; _requestWiFiOff = false; return r; }
-    bool shouldEnableWiFi()  { bool r = _requestWiFiOn;  _requestWiFiOn  = false; return r; }
 
     // ----------------------------------------------------------
     // read()  — must be called every control loop tick
@@ -77,7 +70,6 @@ public:
         if (_pairingMode && _controller && _controller->isConnected()) {
             Serial.println("[BP32] New controller paired successfully!");
             _pairingMode = false;
-            _requestWiFiOn = true; // Trigger radio recovery
         }
 
         PS4Input in;
@@ -118,6 +110,33 @@ public:
         return _controller && _controller->isConnected();
     }
 
+    // ── Sensory Telemetry (Haptics & LEDs) ───────────────────
+    
+    void updateHaptics(const TelemetryData& snap) {
+        if (!_controller || !_controller->isConnected()) return;
+
+        // 1. Light Bar Battery Indicator
+        // Green (12.6V) -> Yellow -> Red (10.5V)
+        uint8_t r = 0, g = 0, b = 0;
+        if (snap.battery_voltage > 11.5f) {
+            g = 255; // Stable Green
+        } else if (snap.battery_voltage > 10.8f) {
+            r = 255; g = 255; // Warning Yellow
+        } else {
+            r = 255; // Critical Red
+            // Flash red if critically low (< 9.6V)
+            if (snap.battery_voltage < 9.8f && (millis() % 500 < 250)) r = 0;
+        }
+        _controller->setColorLED(r, g, b);
+
+        // 2. Impact Detection
+        // Rumble if total acceleration exceeds 3.5G (standard gravity is 1.0)
+        float totalAccel = sqrt(snap.ax*snap.ax + snap.ay*snap.ay + snap.az*snap.az);
+        if (totalAccel > 3.5f) {
+            _controller->playDualRumble(0, 300, 0, 255); // Heavy thud
+        }
+    }
+
     void setRumble(uint8_t small, uint8_t large, uint8_t durationMs = 250) {
         if (_controller && _controller->isConnected()) {
             _controller->playDualRumble(0, durationMs, small, large);
@@ -128,8 +147,6 @@ private:
     static ControllerPtr  _controller;
     static int           _failCount;       // Counter for GAP connection failures
     mutable bool          _pairingMode      = false;
-    mutable bool          _requestWiFiOff   = false;
-    mutable bool          _requestWiFiOn    = false;
     mutable unsigned long _pairingStartedMs = 0;
 
     static void onConnectedController(ControllerPtr ctl) {

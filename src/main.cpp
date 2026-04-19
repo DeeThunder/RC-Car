@@ -3,12 +3,11 @@
 // ║                                                              ║
 // ║  This file is the ORCHESTRATOR only.                         ║
 // ║  It creates hardware objects, initialises them in the        ║
-// ║  right order, connects to WiFi, and launches FreeRTOS        ║
-// ║  tasks. No business logic lives here.                        ║
+// ║  right order, and launches FreeRTOS cockpit tasks.           ║
+// ║  No business logic lives here.                               ║
 // ╚══════════════════════════════════════════════════════════════╝
 
 #include <Arduino.h>
-#include <WiFi.h>
 #include "esp_bt.h"
 #include "esp_coexist.h"
 
@@ -19,7 +18,7 @@
 #include "imu_handler.h"
 #include "gps_handler.h"
 #include "battery_monitor.h"
-#include "web_server.h"
+#include "display_handler.h"
 #include "tasks.h"
 
 // ── Hardware singletons ───────────────────────────────────────
@@ -30,31 +29,10 @@ PS4Handler       ps4;
 IMUHandler       imu;
 GPSHandler       gps;
 BatteryMonitor   battery;
-WebServerManager webServer;
+DisplayHandler    display;
 
 // ─────────────────────────────────────────────────────────────
-void connectWiFi() {
-    Serial.printf("[WiFi] Connecting to %s", WiFiConfig::SSID);
-    WiFi.setHostname(WiFiConfig::HOSTNAME);
-    WiFi.begin(WiFiConfig::SSID, WiFiConfig::PASSWORD);
-
-    uint8_t attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-        delay(500);
-        Serial.print(".");
-        attempts++;
-    }
-
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\n[WiFi] Connected! IP: http://%s\n",
-                      WiFi.localIP().toString().c_str());
-    } else {
-        Serial.println("\n[WiFi] Failed — starting AP mode");
-        WiFi.softAP("DeeThunderRC", "rccar1234");
-        Serial.printf("[WiFi] AP IP: http://%s\n",
-                      WiFi.softAPIP().toString().c_str());
-    }
-}
+// FreeRTOS Task Launcher
 
 // ─────────────────────────────────────────────────────────────
 static void launchTasks() {
@@ -88,14 +66,14 @@ static void launchTasks() {
         TaskConfig::CORE_1
     );
 
-    // Telemetry / WebSocket task — Core 0 (alongside WiFi stack)
+    // Task 4: Physical Dashboard (OLED)
     xTaskCreatePinnedToCore(
-        telemetryTask, "Telemetry",
-        TaskConfig::TELEMETRY_STACK,
+        displayTask, "Display",
+        4096,               // Moderate stack for Graphics
         nullptr,
-        TaskConfig::TELEMETRY_PRIORITY,
+        3,                  // Low priority
         nullptr,
-        TaskConfig::CORE_0
+        TaskConfig::CORE_1  // Run on same core as sensors
     );
 
     Serial.println("[Main] All tasks launched");
@@ -108,10 +86,9 @@ void setup() {
 
     // (BLE memory cannot be released because Bluepad32 uses it to scan for controllers)
 
-    // ── Power Efficiency ─────────────────────────────────────
-    setCpuFrequencyMhz(240);                // Restore to 240MHz for stable BT+WiFi
-    WiFi.setSleep(WIFI_PS_MIN_MODEM);       // Enable Wi-Fi modem sleep
-    esp_coex_preference_set(ESP_COEX_PREFER_BT); // Prioritize Bluetooth handshake over WiFi
+    // ── Power Efficiency & Radio Cleanup ─────────────────────
+    setCpuFrequencyMhz(240);                // Max speed
+    esp_coex_preference_set(ESP_COEX_PREFER_BT); // Prioritize Bluetooth
     
     Serial.println("\n╔══════════════════════════════╗");
     Serial.println("║   DeeThunder RC Car Booting  ║");
@@ -125,9 +102,8 @@ void setup() {
     bool imuOk = imu.begin();
     if (imuOk) imu.calibrate(300);
 
+    display.begin(); // OLED Splash
     gps.begin();
-    connectWiFi();
-    webServer.begin();
     launchTasks();
 
     Serial.println("[Main] Boot complete ✓");
