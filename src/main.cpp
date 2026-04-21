@@ -79,8 +79,16 @@ static void launchTasks() {
     Serial.println("[Main] All tasks launched");
 }
 
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+
 // ─────────────────────────────────────────────────────────────
 void setup() {
+    // Disable brownout detector. Opening the Serial Monitor pulls DTR/RTS which resets the ESP32.
+    // Over a weak USB port, this reset + RF calibration causes a tiny voltage dip that triggers
+    // the brownout detector, causing an infinite loop. Disabling it lets it ride out the dip safely.
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
     Serial.begin(115200);
     delay(500);
 
@@ -94,15 +102,42 @@ void setup() {
     Serial.println("║   DeeThunder RC Car Booting  ║");
     Serial.println("╚══════════════════════════════╝");
 
-    // Initialise hardware — order matters
+    // Initialise hardware — order matters for power spikes!
+    // 1. Setup basic PWM and ADC (Low power)
     motors.begin();
     battery.begin();
-    ps4.begin();
 
+    // 2. Setup display and I2C first so user sees booting status
+    Serial.println("\n[Main] Scanning I2C bus for display:");
+    uint8_t displayAddr = 0x3C;
+    bool found3C = false, found3D = false;
+    
+    // Wire.begin is needed for scanner since we moved imu.begin() down
+    Wire.begin(IMUPins::SDA, IMUPins::SCL); 
+    
+    for(byte address = 1; address < 127; address++ ) {
+        Wire.beginTransmission(address);
+        if (Wire.endTransmission() == 0) {
+            Serial.printf("[Main] I2C device found at address 0x%02X\n", address);
+            if (address == 0x3C) found3C = true;
+            if (address == 0x3D) found3D = true;
+        }
+    }
+
+    if (found3D && !found3C) displayAddr = 0x3D;
+
+    display.begin(displayAddr); // Turns on OLED charge pump
+    display.drawSplash(); 
+    delay(1000); // 1-second delay lets the OLED charge pump power stabilize
+    
+    // 3. Initialize IMU
     bool imuOk = imu.begin();
     if (imuOk) imu.calibrate(300);
 
-    display.begin(); // OLED Splash
+    // 4. Initialize BT Radio (MASSIVE 500mA spike)
+    Serial.println("[Main] Starting Bluetooth Radio...");
+    ps4.begin();
+    
     gps.begin();
     launchTasks();
 

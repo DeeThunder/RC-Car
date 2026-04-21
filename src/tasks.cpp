@@ -37,9 +37,23 @@ void controlTask(void* pvParams) {
 
     for (;;) {
         PS4Input in = ps4.read();
+        TelemetryData snap = Telemetry.read(); // Early read to update fields
+        
         Telemetry.setPS4Connected(in.connected);
 
         if (in.connected) {
+            // Dashboard Paging (User requested L2 and R2 triggers)
+            static bool prevL2 = false;
+            static bool prevR2 = false;
+            bool currL2 = in.l2 > 128;
+            bool currR2 = in.r2 > 128;
+            
+            if (currL2 && !prevL2) snap.ui_page = 0; // Sweep left trigger to Analog Dash
+            if (currR2 && !prevR2) snap.ui_page = 1; // Sweep right trigger to Tracker Hub
+            
+            prevL2 = currL2;
+            prevR2 = currR2;
+
             // Mode toggle
             if ((in.options && !prevOptions) || (in.circle && !prevCircle)) {
                 driveMode = (driveMode == 0) ? 1 : 0;
@@ -61,10 +75,17 @@ void controlTask(void* pvParams) {
                 if (driveMode == 0) motors.tankDrive(in.ly, in.ry);
                 else                motors.arcadeDrive(in.ly, in.lx);
                 Telemetry.setMotors(motors.leftSpeed(), motors.rightSpeed());
+
+                // Debug print so we can physically see if the ESP32 *thinks* it is driving
+                static unsigned long lastMotorPrint = 0;
+                if ((abs(motors.leftSpeed()) > 0 || abs(motors.rightSpeed()) > 0) && (millis() - lastMotorPrint > 500)) {
+                    Serial.printf("[Motor] Driving: Left=%d, Right=%d (Arcade Mode=%d)\n", 
+                                  motors.leftSpeed(), motors.rightSpeed(), driveMode);
+                    lastMotorPrint = millis();
+                }
             }
 
             // Sync telemetry snapshot for other tasks
-            TelemetryData snap = Telemetry.read();
             snap.drive_mode = driveMode;
             snap.gear       = motors.currentGear();
             Telemetry.write(snap);
@@ -137,10 +158,10 @@ void displayTask(void* pvParams) {
     for (;;) {
         TelemetryData snap = Telemetry.read();
 
-        if (ps4.isPairingMode()) {
-            display.drawPairingMode();
+        if (snap.ui_page == 0) {
+            display.drawAnalogDashboard(snap);
         } else {
-            display.drawDashboard(snap);
+            display.drawTrackerDashboard(snap);
         }
 
         vTaskDelayUntil(&xLastWake, pdMS_TO_TICKS(DisplayConfig::REFRESH_PERIOD));

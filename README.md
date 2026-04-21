@@ -1,19 +1,18 @@
-# DeeThunder RC Car — "Radio-Silent" Cockpit
+# DeeThunder RC Car Firmware
 
 **High-performance, Bluetooth-Exclusive firmware for the ESP32 Classic.**  
 This firmware implements an "Exclusive Radio Mode"—WiFi is completely disabled to give the PS4 DualShock 4 controller 100% of the antenna power, ensuring zero latency and zero disconnects. 
 
-Telemetry is provided via an on-board **OLED Display** and **Haptic/LED Feedback** on the controller itself.
+Telemetry is provided via a **Bare-Metal Analog OLED Dashboard** and **Haptic/LED Feedback** on the controller itself. It uses no external graphics libraries, relying entirely on custom trigonometry and I2C math.
 
 ---
 
 ## 🏎️ Telemetry Guide
 
-### 1. Physical Dashboard (OLED)
-The 1.3" OLED (SH1106/SSD1306) on the car provides a real-time cockpit view:
-- **Heading:** Gear indicator (G1-G3) and Connection state.
-- **Center:** Large digital Speedometer (km/h).
-- **Footer:** Battery Voltage (V) and Tilt angles (Roll/Pitch).
+### 1. Bare-Metal Dashboard (OLED)
+The 1.3" OLED (SH1106/SSD1306) on the car uses a custom geometric engine to render a real-time dual-page cockpit:
+- **Analog Drive Mode (L2):** A sweeping analog dial speedometer with a digital mirror, smartphone-style battery percentage, and gear.
+- **Tracker Hub (R2):** A deep diagnostics page explicitly printing raw GPS Latitude/Longitude, altitude, and satellite lock.
 
 ### 2. Sensory Feedback (Light Bar & Rumble)
 The PS4 Controller acts as a sensory telemetry device, keeping your hands on the sticks and eyes on the track:
@@ -27,10 +26,12 @@ The PS4 Controller acts as a sensory telemetry device, keeping your hands on the
 
 | Button | Action | Notes |
 | :--- | :--- | :--- |
-| **Left Stick** | **Arcade Drive** | Single-stick speed and differential steering |
+| **Left Stick** | **Arcade/Tank** | Arcade: Forward/Turn. Tank: Left Track speed |
+| **Right Stick** | **Tank Drive** | Tank: Right Track speed |
 | **Triangle / Square** | **Gear Change** | Cycle through Gear 1 (35%), 2 (70%), or 3 (100%) |
 | **Cross (X)** | **E-Stop** | Kills all motors and clears all rumble/LEDs |
 | **Circle / Options** | **Mode Toggle** | Switches between **Arcade** and **Tank** Drive |
+| **L2 / R2 Triggers** | **Dashboard Paging** | Pull L2 for Analog Dial Mode / Pull R2 for GPS Tracker Hub |
 
 ---
 
@@ -55,3 +56,12 @@ The PS4 Controller acts as a sensory telemetry device, keeping your hands on the
     ```
 
 *Performance optimized by DeeThunder Nexus Ventures.*
+
+---
+
+## ⚖️ License & Copyright
+
+This repository contains PROPRIETARY AND CONFIDENTIAL software.  
+**Copyright (c) 2026 DeeThunder Nexus Ventures. All rights reserved.**
+
+Please see the attached [LICENSE](LICENSE) file for the full legal text blocking unauthorized copying or usage.
