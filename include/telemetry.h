@@ -40,6 +40,7 @@ struct TelemetryData {
     // System
     uint32_t uptime_s  = 0;
     float    heap_free = 0.0f;   // KB
+    uint8_t  ui_page   = 0;      // 0=Analog Dash, 1=Tracker Hub
 };
 
 // ── Thread-safe telemetry store ───────────────────────────────

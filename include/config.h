@@ -8,8 +8,6 @@
 
 #include <cstdint>
 
-#include "secret.h"
-
 // ── PS4 Controller ────────────────────────────────────────────
 namespace PS4Config {
     constexpr int16_t     DEAD_ZONE   = 20;   // joystick dead zone (0–128)
@@ -52,7 +50,7 @@ namespace GPSPins {
 
 // ── Battery Monitor (ADC) ─────────────────────────────────────
 namespace BatteryConfig {
-    constexpr uint8_t  ADC_PIN        = 34; // ADC1_CH6 (Safe with WiFi)
+    constexpr uint8_t  ADC_PIN        = 34; // ADC1_CH6
     // Voltage divider: 100kΩ (R1) + 30kΩ (R2) → scale factor
     constexpr float    DIVIDER_RATIO  = (100.0f + 30.0f) / 30.0f;
     constexpr float    ADC_VREF       = 3.3f;
@@ -67,24 +65,21 @@ namespace TaskConfig {
     // Stack sizes (bytes for ESP-IDF)
     constexpr uint32_t SENSOR_STACK    = 4096;
     constexpr uint32_t CONTROL_STACK   = 4096;
-    constexpr uint32_t TELEMETRY_STACK = 8192;
     constexpr uint32_t GPS_STACK       = 4096;
 
     // Priorities (higher = more urgent; keep control highest)
     constexpr uint8_t CONTROL_PRIORITY   = 5;
     constexpr uint8_t SENSOR_PRIORITY    = 4;
     constexpr uint8_t GPS_PRIORITY       = 3;
-    constexpr uint8_t TELEMETRY_PRIORITY = 2;
 
     // Core affinity
-    constexpr uint8_t CORE_0 = 0;   // WiFi/BT lives here
+    constexpr uint8_t CORE_0 = 0;   // Bluetooth Stack lives here
     constexpr uint8_t CORE_1 = 1;   // App tasks here
 
     // Loop periods (ms)
     constexpr uint32_t CONTROL_PERIOD   = 10;    // 100 Hz
     constexpr uint32_t SENSOR_PERIOD    = 20;    // 50 Hz
     constexpr uint32_t GPS_PERIOD       = 100;   // 10 Hz
-    constexpr uint32_t TELEMETRY_PERIOD = 250;   // 4 Hz (Coexistence Optimized)
 }
 
 // ── Haptic Feedback Config ────────────────────────────────────
@@ -114,8 +109,8 @@ namespace HapticConfig {
     constexpr uint8_t SPEED_RUMBLE_SMALL     = 30;
 }
 
-// ── Web Server ────────────────────────────────────────────────
-namespace WebConfig {
-    constexpr uint16_t HTTP_PORT = 80;
-    constexpr uint16_t WS_PORT  = 80;
+// ── Display Config ──────────────────────────────────────────
+namespace DisplayConfig {
+    constexpr uint8_t ADDR = 0x3C;
+    constexpr uint32_t REFRESH_PERIOD = 200; // 5Hz
 }

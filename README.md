@@ -1,133 +1,67 @@
-# RC Car — Pro Firmware
+# DeeThunder RC Car Firmware
 
-**High-performance, bare-metal RC car firmware for the Original ESP32 Classic.**  
-Designed for sub-millisecond control latency, real-time telemetry, and rugged stability using a PS4 DualShock 4 controller.
+**High-performance, Bluetooth-Exclusive firmware for the ESP32 Classic.**  
+This firmware implements an "Exclusive Radio Mode"—WiFi is completely disabled to give the PS4 DualShock 4 controller 100% of the antenna power, ensuring zero latency and zero disconnects. 
 
----
-
-## 🚀 Key Features
-
-- **🎮 PS4 DualShock 4 Integration**: Direct Bluetooth Classic connection with 10ms polling.
-- **📡 Bare-Metal Telemetry**: Custom RFC 6455 WebSocket implementation (zero-heap) for 20Hz live dashboard streaming.
-- **🛰️ Sensor Fusion**: Raw I2C MPU6050 driver for Roll/Pitch estimation and impact detection.
-- **📍 GPS Integration**: Custom NMEA parser (UART2) for position, altitude, and speed tracking.
-- **⚡ 3S Li-ion Management**: Built-in battery monitor for 9.0V - 12.6V setups with percentage mapping.
-- **📳 Haptic Feedback**: Dynamic controller vibration based on G-force impacts and speed thresholds.
-- **🧵 FreeRTOS Optimized**: Asynchronous multi-core job distribution (Core 0: WiFi/BT, Core 1: Control/Sensors).
+Telemetry is provided via a **Bare-Metal Analog OLED Dashboard** and **Haptic/LED Feedback** on the controller itself. It uses no external graphics libraries, relying entirely on custom trigonometry and I2C math.
 
 ---
 
-## 🛠️ Technical Stack
+## 🏎️ Telemetry Guide
 
-This project deliberately avoids bloated Arduino libraries in favor of bare-metal implementations:
-- **WebSockets**: Custom TCP-based handshake and framing (No `ESPAsyncWebServer`).
-- **JSON**: Stack-allocated `snprintf` builder (Zero `ArduinoJson` heap fragmentation).
-- **MPU6050**: Raw I2C register access (No 100KB+ generic IMU libraries).
-- **GPS**: High-speed circular UART buffer processing.
+### 1. Bare-Metal Dashboard (OLED)
+The 1.3" OLED (SH1106/SSD1306) on the car uses a custom geometric engine to render a real-time dual-page cockpit:
+- **Analog Drive Mode (L2):** A sweeping analog dial speedometer with a digital mirror, smartphone-style battery percentage, and gear.
+- **Tracker Hub (R2):** A deep diagnostics page explicitly printing raw GPS Latitude/Longitude, altitude, and satellite lock.
+
+### 2. Sensory Feedback (Light Bar & Rumble)
+The PS4 Controller acts as a sensory telemetry device, keeping your hands on the sticks and eyes on the track:
+- **Light Bar (Battery):** Green (>11.5V) → Yellow → Red (<10.5V) → **Flashing Red** (Critical Warning).
+- **Impact Rumble:** The controller vibrates hard if the onboard IMU detects a high-G collision (>3.5G).
+- **Gear Rumble:** A short "haptic thud" confirms every gear shift (Triangle/Square).
 
 ---
 
-## 🔌 Hardware Guide (ESP32 Classic)
+## 🎮 PS4 Controller Guide
 
-> [!CAUTION]
-> This config is optimized for **ESP32-WROOM-32**. Do not use GPIOs 6–11 as they are connected to internal SPI Flash and will crash the MCU.
+| Button | Action | Notes |
+| :--- | :--- | :--- |
+| **Left Stick** | **Arcade/Tank** | Arcade: Forward/Turn. Tank: Left Track speed |
+| **Right Stick** | **Tank Drive** | Tank: Right Track speed |
+| **Triangle / Square** | **Gear Change** | Cycle through Gear 1 (35%), 2 (70%), or 3 (100%) |
+| **Cross (X)** | **E-Stop** | Kills all motors and clears all rumble/LEDs |
+| **Circle / Options** | **Mode Toggle** | Switches between **Arcade** and **Tank** Drive |
+| **L2 / R2 Triggers** | **Dashboard Paging** | Pull L2 for Analog Dial Mode / Pull R2 for GPS Tracker Hub |
 
-### Pin Mapping
+---
+
+## 🔌 Hardware Mapping (ESP32 Classic)
+
 | Component | Function | GPIO | Notes |
 | :--- | :--- | :--- | :--- |
-| **Motors** | ENA (PWM) | **25** | Left side speed |
-| | IN1 / IN2 | **26 / 27** | Left side direction |
-| | ENB (PWM) | **14** | Right side speed |
-| | IN3 / IN4 | **32 / 33** | Right side direction |
-| **MPU6050** | SDA / SCL | **21 / 22** | Hardware I2C |
-| **GPS** | TX / RX (ESP) | **17 / 16** | Hardware UART2 |
-| **Battery** | ADC | **34** | **ADC1 Only** (WiFi safe) |
-
-### Power System (3S Li-ion)
-- **Battery**: 11.1V Nominal (12.6V Full)
-- **Voltage Divider**: **100kΩ / 30kΩ** connected to GPIO 34.
-- **Logic**: All sensors (MPU/GPS) must be powered from the **3.3V pin** of the ESP32 to maintain logic compatibility on communication lines.
+| **Motors (L)** | PWM / IN1-2 | **25 / 26, 27** | L298N Channel A |
+| **Motors (R)** | PWM / IN3-4 | **14 / 32, 33** | L298N Channel B |
+| **OLED / IMU** | SDA / SCL | **21 / 22** | Shared Hardware I2C |
+| **GPS** | RX / TX | **16 / 17** | Hardware UART1 |
+| **Battery** | ADC | **34** | ADC1 (Radio Safe) |
 
 ---
 
-## 🏗️ Software Architecture
+## 🛠️ Deploying "Radio-Silent" Mode
 
-### Task Distribution
-```mermaid
-graph TD
-    subgraph Core0 ["Core 0 (WiFi/BT)"]
-        WS[Telemetry Task - 20Hz] --> IP[TCP/IP Stack]
-        BT[Bluetooth Stack] --> PS4[PS4 Controller]
-    end
-    subgraph Core1 ["Core 1 (App Logic)"]
-        CTRL[Control Task - 100Hz] --> MOT[Motor Output]
-        SENS[Sensor Task - 50Hz] --> IMU[MPU6050]
-        GPS[GPS Task - 10Hz] --> UART[UART2]
-    end
-    Core0 <--> Shared[(TelemetryStore)]
-    Core1 <--> Shared
-```
+1.  **CPU Speed**: The system runs at **240MHz** to ensure zero-latency OLED rendering and PS4 HID processing.
+2.  **Flash**:
+    ```bash
+    pio run -t upload -t monitor
+    ```
+
+*Performance optimized by DeeThunder Nexus Ventures.*
 
 ---
 
-## 🧪 Unit Testing
+## ⚖️ License & Copyright
 
-The project includes a robust testing suite for verifying logic without hardware:
-- **Math Verification**: Pitch/Roll trigonometry and ADC-to-Percent curves.
-- **Protocol Checks**: WebSocket JSON syntax and NMEA parsing.
+This repository contains PROPRIETARY AND CONFIDENTIAL software.  
+**Copyright (c) 2026 DeeThunder Nexus Ventures. All rights reserved.**
 
-**To run tests:**
-```bash
-pio test -e esp32dev
-```
-
----
-
-## 🚀 Deployment
-
-1. **Clone the Repo**:
-   ```bash
-   git clone https://github.com/Deethunder/rc_car.git
-   ```
-2. **Set Credentials**:
-   - Copy `include/secret_example.h` to `include/secret.h`.
-   - Update `include/secret.h` with your WiFi SSID, Password, and PS4 MAC Address.
-   - *Note: `secret.h` is ignored by Git to keep your credentials private.*
-
-3. **Controller Pairing**:
-   A PS4 controller only connects to the last "Master" address it has stored. Use these steps to pair it with your ESP32:
-   - **Get ESP32 MAC**: Run the built-in utility:
-     ```bash
-     pio run -e get_mac --target upload --target monitor
-     ```
-   - **Update Controller**:
-     1. Download **SixaxisPairTool** (Windows).
-     2. Connect your PS4 controller to your PC via a **USB Data Cable**.
-     3. Once detected, paste your **ESP32 MAC Address** into the "Change Master" box.
-     4. Click **Update**.
-   - Your controller is now ready to connect to the RC Car!
-
-4. **Upload Filesystem (SPIFFS)**:
-   ```bash
-   pio run --target uploadfs
-   ```
-5. **Flash Firmware**:
-   ```bash
-   pio run --target upload
-   ```
-
----
-
-## 📈 Dashboard Features
-
-- **Live Speedometer**: Real-time speed from GPS.
-- **Horizon Line**: Attitude Indicator using MPU6050 Fusion.
-- **Battery Health**: Dynamic voltage bar with low-power alerts.
-- **Motor Loads**: Visual representation of PWM duty cycles.
-- **System Stats**: Memory heap and task uptime tracker.
-
----
-
-## 📄 License & Credits
-Developed by **DeeThunder Nexus Ventures**.  
-For professional reproduction or licensing, please contact us at info@deethundernexus.org.
+Please see the attached [LICENSE](LICENSE) file for the full legal text blocking unauthorized copying or usage.

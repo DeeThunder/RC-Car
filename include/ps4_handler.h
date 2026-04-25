@@ -110,6 +110,33 @@ public:
         return _controller && _controller->isConnected();
     }
 
+    // ── Sensory Telemetry (Haptics & LEDs) ───────────────────
+    
+    void updateHaptics(const TelemetryData& snap) {
+        if (!_controller || !_controller->isConnected()) return;
+
+        // 1. Light Bar Battery Indicator
+        // Green (12.6V) -> Yellow -> Red (10.5V)
+        uint8_t r = 0, g = 0, b = 0;
+        if (snap.battery_voltage > 11.5f) {
+            g = 255; // Stable Green
+        } else if (snap.battery_voltage > 10.8f) {
+            r = 255; g = 255; // Warning Yellow
+        } else {
+            r = 255; // Critical Red
+            // Flash red if critically low (< 9.6V)
+            if (snap.battery_voltage < 9.8f && (millis() % 500 < 250)) r = 0;
+        }
+        _controller->setColorLED(r, g, b);
+
+        // 2. Impact Detection
+        // Rumble if total acceleration exceeds 3.5G (standard gravity is 1.0)
+        float totalAccel = sqrt(snap.ax*snap.ax + snap.ay*snap.ay + snap.az*snap.az);
+        if (totalAccel > 3.5f) {
+            _controller->playDualRumble(0, 300, 0, 255); // Heavy thud
+        }
+    }
+
     void setRumble(uint8_t small, uint8_t large, uint8_t durationMs = 250) {
         if (_controller && _controller->isConnected()) {
             _controller->playDualRumble(0, durationMs, small, large);
